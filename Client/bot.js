@@ -1,7 +1,8 @@
 var Discord = require("discord.io");
 var logger = require("winston");
 var auth = require("../auth.json");
-var axios = require("axios");
+var http = require("http");
+var https = require("https");
 var spotifyAccessToken = {};
 
 // Configure logger settings
@@ -19,23 +20,33 @@ var bot = new Discord.Client({
 bot.on("ready", async function (evt) {
   let buff = Buffer.from(`${auth.spotifyClientId}:${auth.spotifyClientSecret}`);
   let base64 = buff.toString("base64");
-  const url = "http://localhost:3000/getToken";
-  // Authorization
-  axios
-    .get(url, {
-      params: {
-        base64Encoded: base64,
-      },
-    })
-    .then((res) => {
-      spotifyAccessToken = { ...res.data };
-    })
-    .catch((err) => {
-      logger.error(err);
+  const url =
+    "http://localhost:3000/getToken?" +
+    new URLSearchParams({ base64Encoded: base64 });
+  await http.get(url, (res) => {
+    if (res.statusCode !== 200) {
+      console.error(
+        `Did not get an OK from the server. Code: ${res.statusCode}`
+      );
+      res.resume();
+      return;
+    }
+
+    let data = "";
+    res.on("data", (chunk) => {
+      data += chunk;
     });
+
+    res.on("close", () => {
+      console.log("Retrieved all data");
+      var parsedData = JSON.parse(data);
+      spotifyAccessToken = { ...parsedData };
+      console.log(spotifyAccessToken)
+    });
+  });
 });
 
-bot.on("message", function (user, userID, channelID, message, evt) {
+bot.on("message", async function (user, userID, channelID, message, evt) {
   // Our bot needs to know if it will execute a command
   // It will listen for messages that will start with `!`
   if (message.substring(0, 1) == "!") {
@@ -46,24 +57,35 @@ bot.on("message", function (user, userID, channelID, message, evt) {
     switch (cmd) {
       // !ping
       case "ping":
-        const url = "https://api.spotify.com/v1/search";
-        axios
-          .get(url, {
-            header: {
-              Authorization: 'Bearer ' + spotifyAccessToken.access_token,
-            },
-            params: {
-              q: "The Curse of Curves",
-              type: "artist,album,track",
-            },
-          })
-          .then((res) => {
-            logger.info(res);
-          })
-          .catch((err) => {
-            logger.error(err);
+        let type = "artist,album,track";
+        let subject = "The Curse of Curves";
+        const options = {
+          hostname: 'api.spotify.com',
+          path: '/v1/search?' + new URLSearchParams({q: subject, type: type}),
+          headers: {
+            Authorization: `Bearer ${spotifyAccessToken.access_token}`
+          }
+        }
+        await https.get(options, (res) => {
+          if (res.statusCode !== 200) {
+            console.error(
+              `Did not get an OK from the server. Code: ${res.statusCode}`
+            );
+            res.resume();
+            return;
+          }
+      
+          let data = "";
+          res.on("data", (chunk) => {
+            data += chunk;
           });
-
+      
+          res.on("close", () => {
+            console.log("Retrieved all data");
+            var parsedData = JSON.parse(data);
+            console.log(parsedData);
+          });
+        })
         bot.sendMessage({
           to: channelID,
           message: "Pong!",

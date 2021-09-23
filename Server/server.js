@@ -1,7 +1,6 @@
 //this is assuming a nodejs server environment
 var postQuery = 'grant_type=client_credentials';
 var request = require('request');
-const http = require('http')
 var express = require('express');
 var app = express();
 
