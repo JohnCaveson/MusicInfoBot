@@ -16,33 +16,11 @@ var bot = new Discord.Client({
   token: auth.token,
   autorun: true,
 });
-
+options = {};
 bot.on("ready", async function (evt) {
-  let buff = Buffer.from(`${auth.spotifyClientId}:${auth.spotifyClientSecret}`);
-  let base64 = buff.toString("base64");
-  const url =
-    "http://localhost:3000/getToken?" +
-    new URLSearchParams({ base64Encoded: base64 });
-  await http.get(url, (res) => {
-    if (res.statusCode !== 200) {
-      console.error(
-        `Did not get an OK from the server. Code: ${res.statusCode}`
-      );
-      res.resume();
-      return;
-    }
-
-    let data = "";
-    res.on("data", (chunk) => {
-      data += chunk;
-    });
-
-    res.on("close", () => {
-      console.log("Retrieved all data");
-      var parsedData = JSON.parse(data);
-      spotifyAccessToken = { ...parsedData };
-      console.log(spotifyAccessToken)
-    });
+  await makeRequest(http.get, options).then((res) => {
+    spotifyAccessToken = { ...res };
+    console.log(spotifyAccessToken);
   });
 });
 
@@ -60,32 +38,15 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
         let type = "artist,album,track";
         let subject = "The Curse of Curves";
         const options = {
-          hostname: 'api.spotify.com',
-          path: '/v1/search?' + new URLSearchParams({q: subject, type: type}),
+          hostname: "api.spotify.com",
+          path: "/v1/search?" + new URLSearchParams({ q: subject, type: type }),
           headers: {
-            Authorization: `Bearer ${spotifyAccessToken.access_token}`
-          }
-        }
-        await https.get(options, (res) => {
-          if (res.statusCode !== 200) {
-            console.error(
-              `Did not get an OK from the server. Code: ${res.statusCode}`
-            );
-            res.resume();
-            return;
-          }
-      
-          let data = "";
-          res.on("data", (chunk) => {
-            data += chunk;
-          });
-      
-          res.on("close", () => {
-            console.log("Retrieved all data");
-            var parsedData = JSON.parse(data);
-            console.log(parsedData);
-          });
-        })
+            Authorization: `Bearer ${spotifyAccessToken.access_token}`,
+          },
+        };
+
+        await makeRequest(https.get, options).then(console.log);
+
         bot.sendMessage({
           to: channelID,
           message: "Pong!",
@@ -95,3 +56,34 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
     }
   }
 });
+
+async function makeRequest(httpOrHttpsAndMethod, options) {
+  let buff = Buffer.from(`${auth.spotifyClientId}:${auth.spotifyClientSecret}`);
+  let base64 = buff.toString("base64");
+  await httpOrHttpsAndMethod(
+    options === {}
+      ? "http://localhost:3000/getToken?" +
+          new URLSearchParams({ base64Encoded: base64 })
+      : options,
+    (res) => {
+      var parsedData = "";
+      if (res.statusCode !== 200) {
+        console.error(
+          `Did not get an OK from the server. Code: ${res.statusCode}`
+        );
+        res.resume();
+        return;
+      }
+
+      let data = "";
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+
+      res.on("close", () => {
+        parsedData = JSON.parse(data);
+        return parsedData;
+      });
+    }
+  );
+}
