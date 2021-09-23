@@ -41,7 +41,7 @@ bot.on("ready", async function (evt) {
       console.log("Retrieved all data");
       var parsedData = JSON.parse(data);
       spotifyAccessToken = { ...parsedData };
-      console.log(spotifyAccessToken)
+      console.log(spotifyAccessToken);
     });
   });
 });
@@ -60,12 +60,12 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
         let type = "artist,album,track";
         let subject = "The Curse of Curves";
         const options = {
-          hostname: 'api.spotify.com',
-          path: '/v1/search?' + new URLSearchParams({q: subject, type: type}),
+          hostname: "api.spotify.com",
+          path: "/v1/search?" + new URLSearchParams({ q: subject, type: type }),
           headers: {
-            Authorization: `Bearer ${spotifyAccessToken.access_token}`
-          }
-        }
+            Authorization: `Bearer ${spotifyAccessToken.access_token}`,
+          },
+        };
         await https.get(options, (res) => {
           if (res.statusCode !== 200) {
             console.error(
@@ -74,18 +74,28 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
             res.resume();
             return;
           }
-      
+
           let data = "";
           res.on("data", (chunk) => {
             data += chunk;
           });
-      
+
           res.on("close", () => {
             console.log("Retrieved all data");
             var parsedData = JSON.parse(data);
             console.log(parsedData);
+            var information = [];
+            Object.entries(parsedData).forEach(classification => {
+              let [key, value] = classification;
+              if (value.items !== []) {
+                value.items.forEach((i) => {
+                  information.push({ ...i });
+                });
+              }
+            });
+            console.log(information);
           });
-        })
+        });
         bot.sendMessage({
           to: channelID,
           message: "Pong!",
