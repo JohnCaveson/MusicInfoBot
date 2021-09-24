@@ -25,9 +25,11 @@ bot.on("ready", async function (evt) {
     new URLSearchParams({ base64Encoded: base64 });
   await http.get(url, (res) => {
     if (res.statusCode !== 200) {
-      console.error(
-        `Did not get an OK from the server. Code: ${res.statusCode}`
+      console.log(
+        "🚀 ~ file: bot.js ~ line 28 ~ awaithttp.get ~ res.statusCode",
+        res.statusCode
       );
+      console.error(`Did not get an OK from the server.`);
       res.resume();
       return;
     }
@@ -41,7 +43,10 @@ bot.on("ready", async function (evt) {
       console.log("Retrieved all data");
       var parsedData = JSON.parse(data);
       spotifyAccessToken = { ...parsedData };
-      console.log(spotifyAccessToken);
+      console.log(
+        "🚀 ~ file: bot.js ~ line 44 ~ res.on ~ spotifyAccessToken",
+        spotifyAccessToken
+      );
     });
   });
 });
@@ -50,15 +55,19 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
   // Our bot needs to know if it will execute a command
   // It will listen for messages that will start with `!`
   if (message.substring(0, 1) == "!") {
-    var args = message.substring(1).split(" ");
+    var args = [];
+    args.push(message.substring(1, message.indexOf(" ")));
+    args.push(message.substring(message.indexOf(" ") + 1));
     var cmd = args[0];
-
+    var songId = "";
+    var songName = args[1];
+    var artist = "";
     args = args.splice(1);
     switch (cmd) {
-      // !ping
-      case "ping":
-        let type = "artist,album,track";
-        let subject = "The Curse of Curves";
+      // !si
+      case "si":
+        let type = "track";
+        let subject = songName;
         const options = {
           hostname: "api.spotify.com",
           path: "/v1/search?" + new URLSearchParams({ q: subject, type: type }),
@@ -68,9 +77,11 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
         };
         await https.get(options, (res) => {
           if (res.statusCode !== 200) {
-            console.error(
-              `Did not get an OK from the server. Code: ${res.statusCode}`
+            console.log(
+              "🚀 ~ file: bot.js ~ line 78 ~ awaithttps.get ~ res.statusCode ",
+              res.statusCode
             );
+            console.error(`Did not get an OK from the server.`);
             res.resume();
             return;
           }
@@ -80,12 +91,11 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
             data += chunk;
           });
 
-          res.on("close", () => {
+          res.on("close", async () => {
             console.log("Retrieved all data");
             var parsedData = JSON.parse(data);
-            console.log(parsedData);
             var information = [];
-            Object.entries(parsedData).forEach(classification => {
+            Object.entries(parsedData).forEach((classification) => {
               let [key, value] = classification;
               if (value.items !== []) {
                 value.items.forEach((i) => {
@@ -93,15 +103,75 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
                 });
               }
             });
-            console.log(information);
+            console.log("🚀 ~ file: bot.js ~ line 102 ~ value.items.forEach ~ information", information[0])
+            songId = information[0].id;
+            songName = information[0].name;
+            artist = information[0].artists[0].name;
+            const options2 = {
+              hostname: "api.spotify.com",
+              path: "/v1/audio-features/" + songId,
+              headers: {
+                Authorization: `Bearer ${spotifyAccessToken.access_token}`,
+              },
+            };
+            await https.get(options2, (res) => {
+              if (res.statusCode !== 200) {
+                console.log(
+                  "🚀 ~ file: bot.js ~ line 116 ~ awaithttp.get ~ res.statusCode",
+                  res.statusCode
+                );
+                console.error(`Did not get an OK from the server.`);
+                res.resume();
+                return;
+              }
+
+              let data = "";
+              res.on("data", (chunk) => {
+                data += chunk;
+              });
+
+              res.on("close", () => {
+                console.log("Retrieved all data");
+                var parsedData = JSON.parse(data);
+                let songKey = keys[parsedData.key];
+                let songMode = mode[parsedData.mode];
+                let songBpm = Math.ceil(parsedData.tempo);
+                bot.sendMessage({
+                  to: channelID,
+                  message: `
+\`🎵 ${songName} by ${artist}🎵
+Key: ${songKey} ${songMode} 🎼
+BPM: ${songBpm}\`
+                  `,
+                });
+              });
+            });
           });
-        });
-        bot.sendMessage({
-          to: channelID,
-          message: "Pong!",
         });
         break;
       // Just add any case commands if you want to..
     }
   }
 });
+
+
+
+const keys = {
+  0: "C",
+  1: "C#/D♭",
+  2: "D",
+  3: "D#/E♭",
+  4: "E",
+  5: "F",
+  6: "F#/G♭",
+  7: "G",
+  8: "G#/A♭",
+  9: "A",
+  10:"A#/B♭",
+  11:"B"
+}
+
+const mode = {
+  0: "Major",
+  1: "Minor"
+}
