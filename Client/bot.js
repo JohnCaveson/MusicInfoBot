@@ -62,6 +62,10 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
     var songId = "";
     var songName = args[1];
     var artist = "";
+    var album = "";
+    var releaseDate = "";
+    var songUrl = "";
+
     args = args.splice(1);
     switch (cmd) {
       // !si
@@ -92,7 +96,6 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
           });
 
           res.on("close", async () => {
-            console.log("Retrieved all data");
             var parsedData = JSON.parse(data);
             var information = [];
             Object.entries(parsedData).forEach((classification) => {
@@ -104,9 +107,15 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
               }
             });
             console.log("🚀 ~ file: bot.js ~ line 102 ~ value.items.forEach ~ information", information[0])
+
             songId = information[0].id;
             songName = information[0].name;
             artist = information[0].artists[0].name;
+            album = information[0].album.name
+            releaseDate = information[0].album.release_date
+            songUrl = information[0].external_urls.spotify
+
+            console.log("🚀 ~ file: bot.js ~ line 110 ~ res.on ~ information[0]", information[0])
             const options2 = {
               hostname: "api.spotify.com",
               path: "/v1/audio-features/" + songId,
@@ -139,9 +148,14 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
                 bot.sendMessage({
                   to: channelID,
                   message: `
-\`🎵 ${songName} by ${artist}🎵
-Key: ${songKey} ${songMode} 🎼
+${user} here is the song you wanted information for! If there is anything else I can do, let me know!\`
+Song Name: ${songName} 
+Artist: ${artist}
+Album: ${album}
+Release Date: ${releaseDate}
+Key: ${songKey} ${songMode}
 BPM: ${songBpm}\`
+Here's the song if anyone else wants to listen to it: ${songUrl}
                   `,
                 });
               });
