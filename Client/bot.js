@@ -56,18 +56,37 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
   // It will listen for messages that will start with `!`
   if (message.substring(0, 1) == "!") {
     var args = [];
-    args.push(message.substring(1, message.indexOf(" ")));
-    args.push(message.substring(message.indexOf(" ") + 1));
-    var cmd = args[0];
-    var songId = "";
-    var songName = args[1];
     var artist = "";
     var album = "";
     var releaseDate = "";
     var songUrl = "";
+    var songId = "";
 
+    if (message.includes("help")) {
+      args.push(message.substring(1));
+    } else {
+      args.push(message.substring(1, message.indexOf(" ")));
+      args.push(message.substring(message.indexOf(" ") + 1));
+      var songName = args[1];
+    }
+    var cmd = args[0];
     args = args.splice(1);
     switch (cmd) {
+      //help
+      case "help":
+        bot.sendMessage({
+          to: channelID,
+          message: `
+Here is some of the stuff I can do:
+\`\`\`!si songName [artist album]:
+    This will return information about the song such as
+    release date, album, tempo and key of a song as well
+    as a link for others to listen to it.\`\`\`
+More is being worked on! if you find any issues or have an 
+enhancement request please go to https://github.com/JohnCaveson/MusicInfoBot/issues
+and submit an issue with the appropriate \`Label\``,
+        });
+        break;
       // !si
       case "si":
         let type = "track";
@@ -106,16 +125,22 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
                 });
               }
             });
-            console.log("🚀 ~ file: bot.js ~ line 102 ~ value.items.forEach ~ information", information[0])
+            console.log(
+              "🚀 ~ file: bot.js ~ line 102 ~ value.items.forEach ~ information",
+              information[0]
+            );
 
             songId = information[0].id;
             songName = information[0].name;
             artist = information[0].artists[0].name;
-            album = information[0].album.name
-            releaseDate = information[0].album.release_date
-            songUrl = information[0].external_urls.spotify
+            album = information[0].album.name;
+            releaseDate = information[0].album.release_date;
+            songUrl = information[0].external_urls.spotify;
 
-            console.log("🚀 ~ file: bot.js ~ line 110 ~ res.on ~ information[0]", information[0])
+            console.log(
+              "🚀 ~ file: bot.js ~ line 110 ~ res.on ~ information[0]",
+              information[0]
+            );
             const options2 = {
               hostname: "api.spotify.com",
               path: "/v1/audio-features/" + songId,
@@ -145,16 +170,17 @@ bot.on("message", async function (user, userID, channelID, message, evt) {
                 let songKey = keys[parsedData.key];
                 let songMode = mode[parsedData.mode];
                 let songBpm = Math.ceil(parsedData.tempo);
+                console.log("🚀 ~ file: bot.js ~ line 173 ~ res.on ~ parsedData", parsedData)
                 bot.sendMessage({
                   to: channelID,
                   message: `
-${user} here is the song you wanted information for! If there is anything else I can do, let me know!\`
+${user} here is the song you wanted information for! If there is anything else I can do, let me know!\`\`\`
 Song Name: ${songName} 
 Artist: ${artist}
 Album: ${album}
 Release Date: ${releaseDate}
 Key: ${songKey} ${songMode}
-BPM: ${songBpm}\`
+BPM: ${songBpm}\`\`\`
 Here's the song if anyone else wants to listen to it: ${songUrl}
                   `,
                 });
@@ -168,8 +194,6 @@ Here's the song if anyone else wants to listen to it: ${songUrl}
   }
 });
 
-
-
 const keys = {
   0: "C",
   1: "C#/D♭",
@@ -181,11 +205,11 @@ const keys = {
   7: "G",
   8: "G#/A♭",
   9: "A",
-  10:"A#/B♭",
-  11:"B"
-}
+  10: "A#/B♭",
+  11: "B",
+};
 
 const mode = {
-  0: "Major",
-  1: "Minor"
-}
+  0: "Minor",
+  1: "Major",
+};
